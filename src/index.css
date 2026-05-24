@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: oklch(85% 0.006 270);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: oklch(35% 0.008 270);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .clip-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  opacity: 0.55;
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.pulse-dot {
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx, 0), 420px) rotate(var(--rot, 540deg));
+    opacity: 0;
+  }
+}
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: confettiFall 1.6s ease-out forwards;
+}
+
+.press:active {
+  transform: scale(0.985);
+}
+.barfill {
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pill-diff {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+/* Native <select> rendering. The closed select inherits its painted
+   background from the selected <option> in most browsers, so select and
+   option must agree — Tailwind dark: variants on <select> alone aren't
+   enough. Pair this with no bg/text utilities on the <select> itself. */
+select,
+select option {
+  background-color: oklch(98.5% 0.008 75);
+  color: oklch(22% 0.01 270);
+}
+.dark select,
+.dark select option {
+  background-color: oklch(20% 0.008 270);
+  color: oklch(98.5% 0.008 75);
+}
+
+/* <input> and <textarea> text color does not inherit from body in most
+   browsers — without this, typed text is invisible in dark mode. */
+input,
+textarea {
+  color: oklch(22% 0.01 270);
+}
+.dark input,
+.dark textarea {
+  color: oklch(98.5% 0.008 75);
+}
+input::placeholder,
+textarea::placeholder {
+  color: oklch(58% 0.008 270);
+  opacity: 1;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: oklch(60% 0.008 270);
+}

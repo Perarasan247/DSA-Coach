@@ -1,0 +1,46 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class',
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
+      colors: {
+        paper: 'oklch(98.5% 0.008 75)',
+        paper2: 'oklch(96.5% 0.01 75)',
+        paper3: 'oklch(93% 0.012 75)',
+        ink: 'oklch(22% 0.01 270)',
+        ink2: 'oklch(40% 0.01 270)',
+        ink3: 'oklch(58% 0.008 270)',
+        hairline: 'oklch(89% 0.008 75)',
+        night: 'oklch(16% 0.006 270)',
+        night2: 'oklch(20% 0.008 270)',
+        night3: 'oklch(25% 0.01 270)',
+        mist: 'oklch(72% 0.008 270)',
+        mist2: 'oklch(60% 0.008 270)',
+        accent: 'oklch(60% 0.2 290)',
+        accent2: 'oklch(72% 0.13 290)',
+        accent3: 'oklch(96% 0.03 290)',
+        stuck: 'oklch(72% 0.16 55)',
+        stuckBg: 'oklch(96% 0.04 65)',
+        stuckDk: 'oklch(28% 0.06 55)',
+        shaky: 'oklch(63% 0.14 235)',
+        shakyBg: 'oklch(96% 0.03 235)',
+        shakyDk: 'oklch(28% 0.07 235)',
+        fluent: 'oklch(60% 0.15 150)',
+        fluentBg: 'oklch(96% 0.04 150)',
+        fluentDk: 'oklch(26% 0.06 150)',
+      },
+      boxShadow: {
+        card: '0 1px 2px rgba(20,18,30,0.04), 0 8px 24px -12px rgba(20,18,30,0.08)',
+        pop: '0 12px 40px -8px rgba(20,18,30,0.18), 0 2px 6px rgba(20,18,30,0.06)',
+        ring: '0 0 0 4px oklch(60% 0.2 290 / 0.18)',
+      },
+      borderRadius: { xl2: '18px' },
+    },
+  },
+  plugins: [],
+};
