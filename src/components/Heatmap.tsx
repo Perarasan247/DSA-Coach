@@ -129,11 +129,11 @@ function HeatCell({
 }
 
 function levelClass(count: number): string {
-  if (count <= 0) return 'bg-paper3 dark:bg-night3';
-  if (count === 1) return 'bg-[oklch(85%_0.06_290)] dark:bg-[oklch(32%_0.08_290)]';
-  if (count <= 2) return 'bg-[oklch(75%_0.12_290)] dark:bg-[oklch(45%_0.15_290)]';
-  if (count <= 4) return 'bg-[oklch(65%_0.18_290)] dark:bg-[oklch(58%_0.2_290)]';
-  return 'bg-[oklch(55%_0.22_290)] dark:bg-[oklch(70%_0.18_290)]';
+  if (count <= 0) return 'bg-[oklch(87%_0.003_280)] dark:bg-[oklch(28%_0.008_270)]';
+  if (count === 1) return 'bg-[oklch(83%_0.05_290)] dark:bg-[oklch(36%_0.07_290)]';
+  if (count <= 2) return 'bg-[oklch(72%_0.11_290)] dark:bg-[oklch(48%_0.13_290)]';
+  if (count <= 4) return 'bg-[oklch(62%_0.17_290)] dark:bg-[oklch(58%_0.17_290)]';
+  return 'bg-[oklch(52%_0.21_290)] dark:bg-[oklch(68%_0.16_290)]';
 }
 
 function buildGrid(reviews: Review[], weeks: number, year?: number) {

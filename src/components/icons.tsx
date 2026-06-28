@@ -182,4 +182,19 @@ export const I = {
       <path d="M3 10h18M8 3v4M16 3v4" />
     </Icon>
   ),
+  Loader: (p: IconProps) => (
+    <Icon {...p}>
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </Icon>
+  ),
+  LogOut: (p: IconProps) => (
+    <Icon {...p}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+    </Icon>
+  ),
+  BookOpen: (p: IconProps) => (
+    <Icon {...p}>
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </Icon>
+  ),
 };

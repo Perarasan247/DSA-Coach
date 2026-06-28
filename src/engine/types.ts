@@ -4,6 +4,7 @@ export type CardStatus = 'new' | 'active' | 'mastered' | 'suspended';
 
 export interface Problem {
   id: number;
+  sheet_id: string;
   title: string;
   topic: string;
   subtopic?: string;
@@ -45,6 +46,7 @@ export interface Settings {
   id: 1;
   target: number; // default 5
   ceiling: number; // default 7
+  active_sheet_id?: string;
 }
 
 /** Map of YYYY-MM-DD → number of cards already projected on that day. */

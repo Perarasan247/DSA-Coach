@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      // Redirect to index.html preserving the path for SPA routing
+      const repo = '/DSA-Coach';
+      const path = window.location.pathname.replace(repo, '') || '/';
+      window.location.replace(repo + '/?r=' + encodeURIComponent(path));
+    </script>
+  </head>
+</html>

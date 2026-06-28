@@ -1,0 +1,463 @@
+-- DSA Coach — Supabase Schema
+-- Run this entire file in the Supabase SQL editor (Dashboard → SQL editor → New query)
+
+-- =====================
+-- TABLES
+-- =====================
+
+CREATE TABLE IF NOT EXISTS public.sheets (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  source_url TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.problems (
+  id INTEGER PRIMARY KEY,
+  sheet_id TEXT NOT NULL REFERENCES public.sheets(id),
+  title TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  difficulty TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
+  url TEXT,
+  order_index INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_problems_sheet ON public.problems(sheet_id);
+CREATE INDEX IF NOT EXISTS idx_problems_order ON public.problems(sheet_id, order_index);
+
+CREATE TABLE IF NOT EXISTS public.cards (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  problem_id INTEGER NOT NULL REFERENCES public.problems(id),
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'active', 'mastered', 'suspended')),
+  interval INTEGER NOT NULL DEFAULT 0,
+  due TEXT,
+  consecutive_fluent INTEGER NOT NULL DEFAULT 0,
+  total_reviews INTEGER NOT NULL DEFAULT 0,
+  times_solved INTEGER NOT NULL DEFAULT 0,
+  ready_to_master BOOLEAN NOT NULL DEFAULT FALSE,
+  first_solved_at TEXT,
+  mastered_at TEXT,
+  UNIQUE(user_id, problem_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cards_user ON public.cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_cards_due ON public.cards(user_id, due);
+
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  problem_id INTEGER NOT NULL REFERENCES public.problems(id),
+  date TEXT NOT NULL,
+  rating TEXT NOT NULL CHECK (rating IN ('stuck', 'shaky', 'fluent')),
+  time_taken_sec INTEGER,
+  notes TEXT,
+  prev_card JSONB
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_user ON public.reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_date ON public.reviews(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_reviews_problem ON public.reviews(user_id, problem_id);
+
+CREATE TABLE IF NOT EXISTS public.user_settings (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  target INTEGER NOT NULL DEFAULT 5,
+  ceiling INTEGER NOT NULL DEFAULT 7,
+  active_sheet_id TEXT NOT NULL DEFAULT 'arasu' REFERENCES public.sheets(id)
+);
+
+-- =====================
+-- ROW LEVEL SECURITY
+-- =====================
+
+ALTER TABLE public.sheets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.problems ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+
+-- Sheets: public read
+CREATE POLICY "sheets_read" ON public.sheets FOR SELECT USING (true);
+
+-- Problems: public read, authenticated insert (for first-boot Arasu seeding)
+CREATE POLICY "problems_read" ON public.problems FOR SELECT USING (true);
+CREATE POLICY "problems_insert" ON public.problems FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Cards: user owns their own
+CREATE POLICY "cards_select" ON public.cards FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "cards_insert" ON public.cards FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "cards_update" ON public.cards FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "cards_delete" ON public.cards FOR DELETE USING (auth.uid() = user_id);
+
+-- Reviews: user owns their own
+CREATE POLICY "reviews_select" ON public.reviews FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "reviews_insert" ON public.reviews FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "reviews_update" ON public.reviews FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "reviews_delete" ON public.reviews FOR DELETE USING (auth.uid() = user_id);
+
+-- User settings: user owns their own
+CREATE POLICY "settings_select" ON public.user_settings FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "settings_insert" ON public.user_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "settings_update" ON public.user_settings FOR UPDATE USING (auth.uid() = user_id);
+
+-- =====================
+-- SEED: Sheets
+-- =====================
+
+INSERT INTO public.sheets (id, name, description, source_url) VALUES
+  ('arasu', 'Arasu DSA Sheet', 'Curated 308-problem DSA roadmap', NULL),
+  ('neetcode150', 'Neetcode 150', 'Curated list of 150 LeetCode problems by topic', 'https://neetcode.io/roadmap'),
+  ('striver_sde', 'Striver''s SDE Sheet', '191 most important problems for SDE interviews', 'https://takeuforward.org/dsa/strivers-sde-sheet-top-coding-interview-problems')
+ON CONFLICT (id) DO NOTHING;
+
+-- =====================
+-- SEED: Neetcode 150 (IDs 10001–10150)
+-- =====================
+
+INSERT INTO public.problems (id, sheet_id, title, topic, difficulty, url, order_index) VALUES
+(10001,'neetcode150','Contains Duplicate','Arrays & Hashing','easy','https://leetcode.com/problems/contains-duplicate/',1),
+(10002,'neetcode150','Valid Anagram','Arrays & Hashing','easy','https://leetcode.com/problems/valid-anagram/',2),
+(10003,'neetcode150','Two Sum','Arrays & Hashing','easy','https://leetcode.com/problems/two-sum/',3),
+(10004,'neetcode150','Group Anagrams','Arrays & Hashing','medium','https://leetcode.com/problems/group-anagrams/',4),
+(10005,'neetcode150','Top K Frequent Elements','Arrays & Hashing','medium','https://leetcode.com/problems/top-k-frequent-elements/',5),
+(10006,'neetcode150','Product of Array Except Self','Arrays & Hashing','medium','https://leetcode.com/problems/product-of-array-except-self/',6),
+(10007,'neetcode150','Valid Sudoku','Arrays & Hashing','medium','https://leetcode.com/problems/valid-sudoku/',7),
+(10008,'neetcode150','Encode and Decode Strings','Arrays & Hashing','medium','https://leetcode.com/problems/encode-and-decode-strings/',8),
+(10009,'neetcode150','Longest Consecutive Sequence','Arrays & Hashing','medium','https://leetcode.com/problems/longest-consecutive-sequence/',9),
+(10010,'neetcode150','Valid Palindrome','Two Pointers','easy','https://leetcode.com/problems/valid-palindrome/',10),
+(10011,'neetcode150','Two Sum II - Input Array Is Sorted','Two Pointers','medium','https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/',11),
+(10012,'neetcode150','3Sum','Two Pointers','medium','https://leetcode.com/problems/3sum/',12),
+(10013,'neetcode150','Container With Most Water','Two Pointers','medium','https://leetcode.com/problems/container-with-most-water/',13),
+(10014,'neetcode150','Trapping Rain Water','Two Pointers','hard','https://leetcode.com/problems/trapping-rain-water/',14),
+(10015,'neetcode150','Best Time to Buy and Sell Stock','Sliding Window','easy','https://leetcode.com/problems/best-time-to-buy-and-sell-stock/',15),
+(10016,'neetcode150','Longest Substring Without Repeating Characters','Sliding Window','medium','https://leetcode.com/problems/longest-substring-without-repeating-characters/',16),
+(10017,'neetcode150','Longest Repeating Character Replacement','Sliding Window','medium','https://leetcode.com/problems/longest-repeating-character-replacement/',17),
+(10018,'neetcode150','Permutation in String','Sliding Window','medium','https://leetcode.com/problems/permutation-in-string/',18),
+(10019,'neetcode150','Minimum Window Substring','Sliding Window','hard','https://leetcode.com/problems/minimum-window-substring/',19),
+(10020,'neetcode150','Sliding Window Maximum','Sliding Window','hard','https://leetcode.com/problems/sliding-window-maximum/',20),
+(10021,'neetcode150','Valid Parentheses','Stack','easy','https://leetcode.com/problems/valid-parentheses/',21),
+(10022,'neetcode150','Min Stack','Stack','medium','https://leetcode.com/problems/min-stack/',22),
+(10023,'neetcode150','Evaluate Reverse Polish Notation','Stack','medium','https://leetcode.com/problems/evaluate-reverse-polish-notation/',23),
+(10024,'neetcode150','Generate Parentheses','Stack','medium','https://leetcode.com/problems/generate-parentheses/',24),
+(10025,'neetcode150','Daily Temperatures','Stack','medium','https://leetcode.com/problems/daily-temperatures/',25),
+(10026,'neetcode150','Car Fleet','Stack','medium','https://leetcode.com/problems/car-fleet/',26),
+(10027,'neetcode150','Largest Rectangle in Histogram','Stack','hard','https://leetcode.com/problems/largest-rectangle-in-histogram/',27),
+(10028,'neetcode150','Binary Search','Binary Search','easy','https://leetcode.com/problems/binary-search/',28),
+(10029,'neetcode150','Search a 2D Matrix','Binary Search','medium','https://leetcode.com/problems/search-a-2d-matrix/',29),
+(10030,'neetcode150','Koko Eating Bananas','Binary Search','medium','https://leetcode.com/problems/koko-eating-bananas/',30),
+(10031,'neetcode150','Find Minimum in Rotated Sorted Array','Binary Search','medium','https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/',31),
+(10032,'neetcode150','Search in Rotated Sorted Array','Binary Search','medium','https://leetcode.com/problems/search-in-rotated-sorted-array/',32),
+(10033,'neetcode150','Time Based Key-Value Store','Binary Search','medium','https://leetcode.com/problems/time-based-key-value-store/',33),
+(10034,'neetcode150','Median of Two Sorted Arrays','Binary Search','hard','https://leetcode.com/problems/median-of-two-sorted-arrays/',34),
+(10035,'neetcode150','Reverse Linked List','Linked List','easy','https://leetcode.com/problems/reverse-linked-list/',35),
+(10036,'neetcode150','Merge Two Sorted Lists','Linked List','easy','https://leetcode.com/problems/merge-two-sorted-lists/',36),
+(10037,'neetcode150','Linked List Cycle','Linked List','easy','https://leetcode.com/problems/linked-list-cycle/',37),
+(10038,'neetcode150','Reorder List','Linked List','medium','https://leetcode.com/problems/reorder-list/',38),
+(10039,'neetcode150','Remove Nth Node From End of List','Linked List','medium','https://leetcode.com/problems/remove-nth-node-from-end-of-list/',39),
+(10040,'neetcode150','Copy List with Random Pointer','Linked List','medium','https://leetcode.com/problems/copy-list-with-random-pointer/',40),
+(10041,'neetcode150','Add Two Numbers','Linked List','medium','https://leetcode.com/problems/add-two-numbers/',41),
+(10042,'neetcode150','Find the Duplicate Number','Linked List','medium','https://leetcode.com/problems/find-the-duplicate-number/',42),
+(10043,'neetcode150','LRU Cache','Linked List','medium','https://leetcode.com/problems/lru-cache/',43),
+(10044,'neetcode150','Merge K Sorted Lists','Linked List','hard','https://leetcode.com/problems/merge-k-sorted-lists/',44),
+(10045,'neetcode150','Reverse Nodes in k-Group','Linked List','hard','https://leetcode.com/problems/reverse-nodes-in-k-group/',45),
+(10046,'neetcode150','Invert Binary Tree','Trees','easy','https://leetcode.com/problems/invert-binary-tree/',46),
+(10047,'neetcode150','Maximum Depth of Binary Tree','Trees','easy','https://leetcode.com/problems/maximum-depth-of-binary-tree/',47),
+(10048,'neetcode150','Diameter of Binary Tree','Trees','easy','https://leetcode.com/problems/diameter-of-binary-tree/',48),
+(10049,'neetcode150','Balanced Binary Tree','Trees','easy','https://leetcode.com/problems/balanced-binary-tree/',49),
+(10050,'neetcode150','Same Tree','Trees','easy','https://leetcode.com/problems/same-tree/',50),
+(10051,'neetcode150','Subtree of Another Tree','Trees','easy','https://leetcode.com/problems/subtree-of-another-tree/',51),
+(10052,'neetcode150','Lowest Common Ancestor of a BST','Trees','medium','https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/',52),
+(10053,'neetcode150','Binary Tree Level Order Traversal','Trees','medium','https://leetcode.com/problems/binary-tree-level-order-traversal/',53),
+(10054,'neetcode150','Binary Tree Right Side View','Trees','medium','https://leetcode.com/problems/binary-tree-right-side-view/',54),
+(10055,'neetcode150','Count Good Nodes in Binary Tree','Trees','medium','https://leetcode.com/problems/count-good-nodes-in-binary-tree/',55),
+(10056,'neetcode150','Validate Binary Search Tree','Trees','medium','https://leetcode.com/problems/validate-binary-search-tree/',56),
+(10057,'neetcode150','Kth Smallest Element in a BST','Trees','medium','https://leetcode.com/problems/kth-smallest-element-in-a-bst/',57),
+(10058,'neetcode150','Construct Binary Tree from Preorder and Inorder Traversal','Trees','medium','https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/',58),
+(10059,'neetcode150','Binary Tree Maximum Path Sum','Trees','hard','https://leetcode.com/problems/binary-tree-maximum-path-sum/',59),
+(10060,'neetcode150','Serialize and Deserialize Binary Tree','Trees','hard','https://leetcode.com/problems/serialize-and-deserialize-binary-tree/',60),
+(10061,'neetcode150','Implement Trie (Prefix Tree)','Tries','medium','https://leetcode.com/problems/implement-trie-prefix-tree/',61),
+(10062,'neetcode150','Design Add and Search Words Data Structure','Tries','medium','https://leetcode.com/problems/design-add-and-search-words-data-structure/',62),
+(10063,'neetcode150','Word Search II','Tries','hard','https://leetcode.com/problems/word-search-ii/',63),
+(10064,'neetcode150','Kth Largest Element in a Stream','Heap / Priority Queue','easy','https://leetcode.com/problems/kth-largest-element-in-a-stream/',64),
+(10065,'neetcode150','Last Stone Weight','Heap / Priority Queue','easy','https://leetcode.com/problems/last-stone-weight/',65),
+(10066,'neetcode150','K Closest Points to Origin','Heap / Priority Queue','medium','https://leetcode.com/problems/k-closest-points-to-origin/',66),
+(10067,'neetcode150','Kth Largest Element in an Array','Heap / Priority Queue','medium','https://leetcode.com/problems/kth-largest-element-in-an-array/',67),
+(10068,'neetcode150','Task Scheduler','Heap / Priority Queue','medium','https://leetcode.com/problems/task-scheduler/',68),
+(10069,'neetcode150','Design Twitter','Heap / Priority Queue','medium','https://leetcode.com/problems/design-twitter/',69),
+(10070,'neetcode150','Find Median from Data Stream','Heap / Priority Queue','hard','https://leetcode.com/problems/find-median-from-data-stream/',70),
+(10071,'neetcode150','Subsets','Backtracking','medium','https://leetcode.com/problems/subsets/',71),
+(10072,'neetcode150','Combination Sum','Backtracking','medium','https://leetcode.com/problems/combination-sum/',72),
+(10073,'neetcode150','Combination Sum II','Backtracking','medium','https://leetcode.com/problems/combination-sum-ii/',73),
+(10074,'neetcode150','Permutations','Backtracking','medium','https://leetcode.com/problems/permutations/',74),
+(10075,'neetcode150','Subsets II','Backtracking','medium','https://leetcode.com/problems/subsets-ii/',75),
+(10076,'neetcode150','Word Search','Backtracking','medium','https://leetcode.com/problems/word-search/',76),
+(10077,'neetcode150','Palindrome Partitioning','Backtracking','medium','https://leetcode.com/problems/palindrome-partitioning/',77),
+(10078,'neetcode150','Letter Combinations of a Phone Number','Backtracking','medium','https://leetcode.com/problems/letter-combinations-of-a-phone-number/',78),
+(10079,'neetcode150','N-Queens','Backtracking','hard','https://leetcode.com/problems/n-queens/',79),
+(10080,'neetcode150','Number of Islands','Graphs','medium','https://leetcode.com/problems/number-of-islands/',80),
+(10081,'neetcode150','Clone Graph','Graphs','medium','https://leetcode.com/problems/clone-graph/',81),
+(10082,'neetcode150','Max Area of Island','Graphs','medium','https://leetcode.com/problems/max-area-of-island/',82),
+(10083,'neetcode150','Pacific Atlantic Water Flow','Graphs','medium','https://leetcode.com/problems/pacific-atlantic-water-flow/',83),
+(10084,'neetcode150','Surrounded Regions','Graphs','medium','https://leetcode.com/problems/surrounded-regions/',84),
+(10085,'neetcode150','Rotting Oranges','Graphs','medium','https://leetcode.com/problems/rotting-oranges/',85),
+(10086,'neetcode150','Walls and Gates','Graphs','medium','https://leetcode.com/problems/walls-and-gates/',86),
+(10087,'neetcode150','Course Schedule','Graphs','medium','https://leetcode.com/problems/course-schedule/',87),
+(10088,'neetcode150','Course Schedule II','Graphs','medium','https://leetcode.com/problems/course-schedule-ii/',88),
+(10089,'neetcode150','Redundant Connection','Graphs','medium','https://leetcode.com/problems/redundant-connection/',89),
+(10090,'neetcode150','Number of Connected Components in an Undirected Graph','Graphs','medium','https://leetcode.com/problems/number-of-connected-components-in-an-undirected-graph/',90),
+(10091,'neetcode150','Graph Valid Tree','Graphs','medium','https://leetcode.com/problems/graph-valid-tree/',91),
+(10092,'neetcode150','Word Ladder','Graphs','hard','https://leetcode.com/problems/word-ladder/',92),
+(10093,'neetcode150','Reconstruct Itinerary','Advanced Graphs','hard','https://leetcode.com/problems/reconstruct-itinerary/',93),
+(10094,'neetcode150','Min Cost to Connect All Points','Advanced Graphs','medium','https://leetcode.com/problems/min-cost-to-connect-all-points/',94),
+(10095,'neetcode150','Network Delay Time','Advanced Graphs','medium','https://leetcode.com/problems/network-delay-time/',95),
+(10096,'neetcode150','Swim in Rising Water','Advanced Graphs','hard','https://leetcode.com/problems/swim-in-rising-water/',96),
+(10097,'neetcode150','Alien Dictionary','Advanced Graphs','hard','https://leetcode.com/problems/alien-dictionary/',97),
+(10098,'neetcode150','Cheapest Flights Within K Stops','Advanced Graphs','medium','https://leetcode.com/problems/cheapest-flights-within-k-stops/',98),
+(10099,'neetcode150','Climbing Stairs','1D Dynamic Programming','easy','https://leetcode.com/problems/climbing-stairs/',99),
+(10100,'neetcode150','Min Cost Climbing Stairs','1D Dynamic Programming','easy','https://leetcode.com/problems/min-cost-climbing-stairs/',100),
+(10101,'neetcode150','House Robber','1D Dynamic Programming','medium','https://leetcode.com/problems/house-robber/',101),
+(10102,'neetcode150','House Robber II','1D Dynamic Programming','medium','https://leetcode.com/problems/house-robber-ii/',102),
+(10103,'neetcode150','Longest Palindromic Substring','1D Dynamic Programming','medium','https://leetcode.com/problems/longest-palindromic-substring/',103),
+(10104,'neetcode150','Palindromic Substrings','1D Dynamic Programming','medium','https://leetcode.com/problems/palindromic-substrings/',104),
+(10105,'neetcode150','Decode Ways','1D Dynamic Programming','medium','https://leetcode.com/problems/decode-ways/',105),
+(10106,'neetcode150','Coin Change','1D Dynamic Programming','medium','https://leetcode.com/problems/coin-change/',106),
+(10107,'neetcode150','Maximum Product Subarray','1D Dynamic Programming','medium','https://leetcode.com/problems/maximum-product-subarray/',107),
+(10108,'neetcode150','Word Break','1D Dynamic Programming','medium','https://leetcode.com/problems/word-break/',108),
+(10109,'neetcode150','Longest Increasing Subsequence','1D Dynamic Programming','medium','https://leetcode.com/problems/longest-increasing-subsequence/',109),
+(10110,'neetcode150','Partition Equal Subset Sum','1D Dynamic Programming','medium','https://leetcode.com/problems/partition-equal-subset-sum/',110),
+(10111,'neetcode150','Unique Paths','2D Dynamic Programming','medium','https://leetcode.com/problems/unique-paths/',111),
+(10112,'neetcode150','Longest Common Subsequence','2D Dynamic Programming','medium','https://leetcode.com/problems/longest-common-subsequence/',112),
+(10113,'neetcode150','Best Time to Buy and Sell Stock with Cooldown','2D Dynamic Programming','medium','https://leetcode.com/problems/best-time-to-buy-and-sell-stock-with-cooldown/',113),
+(10114,'neetcode150','Coin Change II','2D Dynamic Programming','medium','https://leetcode.com/problems/coin-change-ii/',114),
+(10115,'neetcode150','Target Sum','2D Dynamic Programming','medium','https://leetcode.com/problems/target-sum/',115),
+(10116,'neetcode150','Interleaving String','2D Dynamic Programming','medium','https://leetcode.com/problems/interleaving-string/',116),
+(10117,'neetcode150','Longest Increasing Path in a Matrix','2D Dynamic Programming','hard','https://leetcode.com/problems/longest-increasing-path-in-a-matrix/',117),
+(10118,'neetcode150','Distinct Subsequences','2D Dynamic Programming','hard','https://leetcode.com/problems/distinct-subsequences/',118),
+(10119,'neetcode150','Edit Distance','2D Dynamic Programming','medium','https://leetcode.com/problems/edit-distance/',119),
+(10120,'neetcode150','Burst Balloons','2D Dynamic Programming','hard','https://leetcode.com/problems/burst-balloons/',120),
+(10121,'neetcode150','Regular Expression Matching','2D Dynamic Programming','hard','https://leetcode.com/problems/regular-expression-matching/',121),
+(10122,'neetcode150','Maximum Subarray','Greedy','medium','https://leetcode.com/problems/maximum-subarray/',122),
+(10123,'neetcode150','Jump Game','Greedy','medium','https://leetcode.com/problems/jump-game/',123),
+(10124,'neetcode150','Jump Game II','Greedy','medium','https://leetcode.com/problems/jump-game-ii/',124),
+(10125,'neetcode150','Gas Station','Greedy','medium','https://leetcode.com/problems/gas-station/',125),
+(10126,'neetcode150','Hand of Straights','Greedy','medium','https://leetcode.com/problems/hand-of-straights/',126),
+(10127,'neetcode150','Merge Triplets to Form Target Triplet','Greedy','medium','https://leetcode.com/problems/merge-triplets-to-form-target-triplet/',127),
+(10128,'neetcode150','Partition Labels','Greedy','medium','https://leetcode.com/problems/partition-labels/',128),
+(10129,'neetcode150','Valid Parenthesis String','Greedy','medium','https://leetcode.com/problems/valid-parenthesis-string/',129),
+(10130,'neetcode150','Insert Interval','Intervals','medium','https://leetcode.com/problems/insert-interval/',130),
+(10131,'neetcode150','Merge Intervals','Intervals','medium','https://leetcode.com/problems/merge-intervals/',131),
+(10132,'neetcode150','Non-overlapping Intervals','Intervals','medium','https://leetcode.com/problems/non-overlapping-intervals/',132),
+(10133,'neetcode150','Meeting Rooms','Intervals','easy','https://leetcode.com/problems/meeting-rooms/',133),
+(10134,'neetcode150','Meeting Rooms II','Intervals','medium','https://leetcode.com/problems/meeting-rooms-ii/',134),
+(10135,'neetcode150','Minimum Interval to Include Each Query','Intervals','hard','https://leetcode.com/problems/minimum-interval-to-include-each-query/',135),
+(10136,'neetcode150','Rotate Image','Math & Geometry','medium','https://leetcode.com/problems/rotate-image/',136),
+(10137,'neetcode150','Spiral Matrix','Math & Geometry','medium','https://leetcode.com/problems/spiral-matrix/',137),
+(10138,'neetcode150','Set Matrix Zeroes','Math & Geometry','medium','https://leetcode.com/problems/set-matrix-zeroes/',138),
+(10139,'neetcode150','Happy Number','Math & Geometry','easy','https://leetcode.com/problems/happy-number/',139),
+(10140,'neetcode150','Plus One','Math & Geometry','easy','https://leetcode.com/problems/plus-one/',140),
+(10141,'neetcode150','Pow(x, n)','Math & Geometry','medium','https://leetcode.com/problems/powx-n/',141),
+(10142,'neetcode150','Multiply Strings','Math & Geometry','medium','https://leetcode.com/problems/multiply-strings/',142),
+(10143,'neetcode150','Detect Squares','Math & Geometry','medium','https://leetcode.com/problems/detect-squares/',143),
+(10144,'neetcode150','Single Number','Bit Manipulation','easy','https://leetcode.com/problems/single-number/',144),
+(10145,'neetcode150','Number of 1 Bits','Bit Manipulation','easy','https://leetcode.com/problems/number-of-1-bits/',145),
+(10146,'neetcode150','Counting Bits','Bit Manipulation','easy','https://leetcode.com/problems/counting-bits/',146),
+(10147,'neetcode150','Reverse Bits','Bit Manipulation','easy','https://leetcode.com/problems/reverse-bits/',147),
+(10148,'neetcode150','Missing Number','Bit Manipulation','easy','https://leetcode.com/problems/missing-number/',148),
+(10149,'neetcode150','Sum of Two Integers','Bit Manipulation','medium','https://leetcode.com/problems/sum-of-two-integers/',149),
+(10150,'neetcode150','Reverse Integer','Bit Manipulation','medium','https://leetcode.com/problems/reverse-integer/',150)
+ON CONFLICT (id) DO NOTHING;
+
+-- =====================
+-- SEED: Striver's SDE Sheet (IDs 20001–20191)
+-- =====================
+
+INSERT INTO public.problems (id, sheet_id, title, topic, difficulty, url, order_index) VALUES
+(20001,'striver_sde','Set Matrix Zeroes','Arrays','medium','https://leetcode.com/problems/set-matrix-zeroes/',1),
+(20002,'striver_sde','Pascal''s Triangle','Arrays','easy','https://leetcode.com/problems/pascals-triangle/',2),
+(20003,'striver_sde','Next Permutation','Arrays','medium','https://leetcode.com/problems/next-permutation/',3),
+(20004,'striver_sde','Kadane''s Algorithm (Maximum Subarray)','Arrays','medium','https://leetcode.com/problems/maximum-subarray/',4),
+(20005,'striver_sde','Sort Colors','Arrays','medium','https://leetcode.com/problems/sort-colors/',5),
+(20006,'striver_sde','Best Time to Buy and Sell Stock','Arrays','easy','https://leetcode.com/problems/best-time-to-buy-and-sell-stock/',6),
+(20007,'striver_sde','Rotate Image','Arrays Part II','medium','https://leetcode.com/problems/rotate-image/',7),
+(20008,'striver_sde','Merge Intervals','Arrays Part II','medium','https://leetcode.com/problems/merge-intervals/',8),
+(20009,'striver_sde','Merge Sorted Array','Arrays Part II','easy','https://leetcode.com/problems/merge-sorted-array/',9),
+(20010,'striver_sde','Find the Duplicate Number','Arrays Part II','medium','https://leetcode.com/problems/find-the-duplicate-number/',10),
+(20011,'striver_sde','Repeat and Missing Number','Arrays Part II','hard',NULL,11),
+(20012,'striver_sde','Count Inversions','Arrays Part II','hard',NULL,12),
+(20013,'striver_sde','Search a 2D Matrix','Arrays Part III','medium','https://leetcode.com/problems/search-a-2d-matrix/',13),
+(20014,'striver_sde','Pow(x, n)','Arrays Part III','medium','https://leetcode.com/problems/powx-n/',14),
+(20015,'striver_sde','Majority Element (> n/2 times)','Arrays Part III','easy','https://leetcode.com/problems/majority-element/',15),
+(20016,'striver_sde','Majority Element II (> n/3 times)','Arrays Part III','medium','https://leetcode.com/problems/majority-element-ii/',16),
+(20017,'striver_sde','Unique Paths','Arrays Part III','medium','https://leetcode.com/problems/unique-paths/',17),
+(20018,'striver_sde','Reverse Pairs','Arrays Part III','hard','https://leetcode.com/problems/reverse-pairs/',18),
+(20019,'striver_sde','Two Sum','Hashing','easy','https://leetcode.com/problems/two-sum/',19),
+(20020,'striver_sde','4Sum','Hashing','medium','https://leetcode.com/problems/4sum/',20),
+(20021,'striver_sde','Longest Consecutive Sequence','Hashing','medium','https://leetcode.com/problems/longest-consecutive-sequence/',21),
+(20022,'striver_sde','Largest Subarray with 0 Sum','Hashing','medium',NULL,22),
+(20023,'striver_sde','Count Subarrays with XOR K','Hashing','medium',NULL,23),
+(20024,'striver_sde','Longest Substring Without Repeating Characters','Hashing','medium','https://leetcode.com/problems/longest-substring-without-repeating-characters/',24),
+(20025,'striver_sde','Reverse Linked List','Linked List','easy','https://leetcode.com/problems/reverse-linked-list/',25),
+(20026,'striver_sde','Middle of the Linked List','Linked List','easy','https://leetcode.com/problems/middle-of-the-linked-list/',26),
+(20027,'striver_sde','Merge Two Sorted Lists','Linked List','easy','https://leetcode.com/problems/merge-two-sorted-lists/',27),
+(20028,'striver_sde','Remove Nth Node From End of List','Linked List','medium','https://leetcode.com/problems/remove-nth-node-from-end-of-list/',28),
+(20029,'striver_sde','Add Two Numbers','Linked List','medium','https://leetcode.com/problems/add-two-numbers/',29),
+(20030,'striver_sde','Delete a Node in Linked List','Linked List','easy','https://leetcode.com/problems/delete-node-in-a-linked-list/',30),
+(20031,'striver_sde','Intersection of Two Linked Lists','Linked List Part II','easy','https://leetcode.com/problems/intersection-of-two-linked-lists/',31),
+(20032,'striver_sde','Linked List Cycle','Linked List Part II','easy','https://leetcode.com/problems/linked-list-cycle/',32),
+(20033,'striver_sde','Reverse Nodes in k-Group','Linked List Part II','hard','https://leetcode.com/problems/reverse-nodes-in-k-group/',33),
+(20034,'striver_sde','Palindrome Linked List','Linked List Part II','easy','https://leetcode.com/problems/palindrome-linked-list/',34),
+(20035,'striver_sde','Linked List Cycle II','Linked List Part II','medium','https://leetcode.com/problems/linked-list-cycle-ii/',35),
+(20036,'striver_sde','Flatten a Multilevel Doubly Linked List','Linked List Part II','medium','https://leetcode.com/problems/flatten-a-multilevel-doubly-linked-list/',36),
+(20037,'striver_sde','Rotate List','Linked List & Arrays','medium','https://leetcode.com/problems/rotate-list/',37),
+(20038,'striver_sde','Copy List with Random Pointer','Linked List & Arrays','medium','https://leetcode.com/problems/copy-list-with-random-pointer/',38),
+(20039,'striver_sde','3Sum','Linked List & Arrays','medium','https://leetcode.com/problems/3sum/',39),
+(20040,'striver_sde','Trapping Rain Water','Linked List & Arrays','hard','https://leetcode.com/problems/trapping-rain-water/',40),
+(20041,'striver_sde','Remove Duplicates from Sorted Array','Linked List & Arrays','easy','https://leetcode.com/problems/remove-duplicates-from-sorted-array/',41),
+(20042,'striver_sde','Max Consecutive Ones','Linked List & Arrays','easy','https://leetcode.com/problems/max-consecutive-ones/',42),
+(20043,'striver_sde','N Meetings in One Room','Greedy','medium',NULL,43),
+(20044,'striver_sde','Minimum Platforms Required','Greedy','medium',NULL,44),
+(20045,'striver_sde','Job Sequencing Problem','Greedy','medium',NULL,45),
+(20046,'striver_sde','Fractional Knapsack Problem','Greedy','medium',NULL,46),
+(20047,'striver_sde','Minimum Number of Coins','Greedy','easy',NULL,47),
+(20048,'striver_sde','Activity Selection','Greedy','medium',NULL,48),
+(20049,'striver_sde','Subset Sums','Recursion','medium',NULL,49),
+(20050,'striver_sde','Subsets II','Recursion','medium','https://leetcode.com/problems/subsets-ii/',50),
+(20051,'striver_sde','Combination Sum','Recursion','medium','https://leetcode.com/problems/combination-sum/',51),
+(20052,'striver_sde','Combination Sum II','Recursion','medium','https://leetcode.com/problems/combination-sum-ii/',52),
+(20053,'striver_sde','Palindrome Partitioning','Recursion','medium','https://leetcode.com/problems/palindrome-partitioning/',53),
+(20054,'striver_sde','Kth Permutation Sequence','Recursion','hard','https://leetcode.com/problems/permutation-sequence/',54),
+(20055,'striver_sde','Permutations','Recursion & Backtracking','medium','https://leetcode.com/problems/permutations/',55),
+(20056,'striver_sde','N-Queens','Recursion & Backtracking','hard','https://leetcode.com/problems/n-queens/',56),
+(20057,'striver_sde','Sudoku Solver','Recursion & Backtracking','hard','https://leetcode.com/problems/sudoku-solver/',57),
+(20058,'striver_sde','M Coloring Problem','Recursion & Backtracking','medium',NULL,58),
+(20059,'striver_sde','Rat in a Maze','Recursion & Backtracking','medium',NULL,59),
+(20060,'striver_sde','Word Break','Recursion & Backtracking','medium','https://leetcode.com/problems/word-break/',60),
+(20061,'striver_sde','Nth Root of a Number','Binary Search','medium',NULL,61),
+(20062,'striver_sde','Matrix Median','Binary Search','hard',NULL,62),
+(20063,'striver_sde','Single Element in a Sorted Array','Binary Search','medium','https://leetcode.com/problems/single-element-in-a-sorted-array/',63),
+(20064,'striver_sde','Search in Rotated Sorted Array','Binary Search','medium','https://leetcode.com/problems/search-in-rotated-sorted-array/',64),
+(20065,'striver_sde','Median of Two Sorted Arrays','Binary Search','hard','https://leetcode.com/problems/median-of-two-sorted-arrays/',65),
+(20066,'striver_sde','Kth Element of Two Sorted Arrays','Binary Search','medium',NULL,66),
+(20067,'striver_sde','Allocate Minimum Pages','Binary Search','hard',NULL,67),
+(20068,'striver_sde','Aggressive Cows','Binary Search','hard',NULL,68),
+(20069,'striver_sde','Kth Largest Element in an Array','Heap','medium','https://leetcode.com/problems/kth-largest-element-in-an-array/',69),
+(20070,'striver_sde','Maximum Sum Combination','Heap','medium',NULL,70),
+(20071,'striver_sde','Find Median from Data Stream','Heap','hard','https://leetcode.com/problems/find-median-from-data-stream/',71),
+(20072,'striver_sde','Merge K Sorted Lists','Heap','hard','https://leetcode.com/problems/merge-k-sorted-lists/',72),
+(20073,'striver_sde','Top K Frequent Elements','Heap','medium','https://leetcode.com/problems/top-k-frequent-elements/',73),
+(20074,'striver_sde','Task Scheduler','Heap','medium','https://leetcode.com/problems/task-scheduler/',74),
+(20075,'striver_sde','Next Greater Element I','Stacks & Queues','easy','https://leetcode.com/problems/next-greater-element-i/',75),
+(20076,'striver_sde','Valid Parentheses','Stacks & Queues','easy','https://leetcode.com/problems/valid-parentheses/',76),
+(20077,'striver_sde','Implement Stack using Queues','Stacks & Queues','easy','https://leetcode.com/problems/implement-stack-using-queues/',77),
+(20078,'striver_sde','Implement Queue using Stacks','Stacks & Queues','easy','https://leetcode.com/problems/implement-queue-using-stacks/',78),
+(20079,'striver_sde','LRU Cache','Stacks & Queues','medium','https://leetcode.com/problems/lru-cache/',79),
+(20080,'striver_sde','Min Stack','Stacks & Queues','medium','https://leetcode.com/problems/min-stack/',80),
+(20081,'striver_sde','Next Smaller Element','Stacks & Queues Part II','medium',NULL,81),
+(20082,'striver_sde','Largest Rectangle in Histogram','Stacks & Queues Part II','hard','https://leetcode.com/problems/largest-rectangle-in-histogram/',82),
+(20083,'striver_sde','Sliding Window Maximum','Stacks & Queues Part II','hard','https://leetcode.com/problems/sliding-window-maximum/',83),
+(20084,'striver_sde','Online Stock Span','Stacks & Queues Part II','medium','https://leetcode.com/problems/online-stock-span/',84),
+(20085,'striver_sde','Rotting Oranges','Stacks & Queues Part II','medium','https://leetcode.com/problems/rotting-oranges/',85),
+(20086,'striver_sde','Celebrity Problem','Stacks & Queues Part II','medium',NULL,86),
+(20087,'striver_sde','Reverse Words in a String','Strings','medium','https://leetcode.com/problems/reverse-words-in-a-string/',87),
+(20088,'striver_sde','Longest Palindromic Substring','Strings','medium','https://leetcode.com/problems/longest-palindromic-substring/',88),
+(20089,'striver_sde','Roman to Integer','Strings','easy','https://leetcode.com/problems/roman-to-integer/',89),
+(20090,'striver_sde','String to Integer (ATOI)','Strings','medium','https://leetcode.com/problems/string-to-integer-atoi/',90),
+(20091,'striver_sde','Count and Say','Strings','medium','https://leetcode.com/problems/count-and-say/',91),
+(20092,'striver_sde','Compare Version Numbers','Strings','medium','https://leetcode.com/problems/compare-version-numbers/',92),
+(20093,'striver_sde','Longest Common Prefix','Strings Part II','easy','https://leetcode.com/problems/longest-common-prefix/',93),
+(20094,'striver_sde','Repeated String Match','Strings Part II','medium','https://leetcode.com/problems/repeated-string-match/',94),
+(20095,'striver_sde','Wildcard Matching','Strings Part II','hard','https://leetcode.com/problems/wildcard-matching/',95),
+(20096,'striver_sde','Find First Occurrence in a String (KMP)','Strings Part II','easy','https://leetcode.com/problems/find-the-index-of-the-first-occurrence-in-a-string/',96),
+(20097,'striver_sde','Minimum Characters to Add for Palindrome','Strings Part II','hard',NULL,97),
+(20098,'striver_sde','Valid Anagram','Strings Part II','easy','https://leetcode.com/problems/valid-anagram/',98),
+(20099,'striver_sde','Binary Tree Inorder Traversal','Binary Tree','easy','https://leetcode.com/problems/binary-tree-inorder-traversal/',99),
+(20100,'striver_sde','Binary Tree Preorder Traversal','Binary Tree','easy','https://leetcode.com/problems/binary-tree-preorder-traversal/',100),
+(20101,'striver_sde','Binary Tree Postorder Traversal','Binary Tree','easy','https://leetcode.com/problems/binary-tree-postorder-traversal/',101),
+(20102,'striver_sde','Morris Inorder Traversal','Binary Tree','medium','https://leetcode.com/problems/binary-tree-inorder-traversal/',102),
+(20103,'striver_sde','Morris Preorder Traversal','Binary Tree','medium','https://leetcode.com/problems/binary-tree-preorder-traversal/',103),
+(20104,'striver_sde','Left View of Binary Tree','Binary Tree','easy',NULL,104),
+(20105,'striver_sde','Bottom View of Binary Tree','Binary Tree','medium',NULL,105),
+(20106,'striver_sde','Top View of Binary Tree','Binary Tree Part II','medium',NULL,106),
+(20107,'striver_sde','Vertical Order Traversal of a Binary Tree','Binary Tree Part II','hard','https://leetcode.com/problems/vertical-order-traversal-of-a-binary-tree/',107),
+(20108,'striver_sde','Root to Node Path in Binary Tree','Binary Tree Part II','medium',NULL,108),
+(20109,'striver_sde','Maximum Width of Binary Tree','Binary Tree Part II','medium','https://leetcode.com/problems/maximum-width-of-binary-tree/',109),
+(20110,'striver_sde','All Nodes Distance K in Binary Tree','Binary Tree Part II','medium','https://leetcode.com/problems/all-nodes-distance-k-in-binary-tree/',110),
+(20111,'striver_sde','Maximum Depth of Binary Tree','Binary Tree Part III','easy','https://leetcode.com/problems/maximum-depth-of-binary-tree/',111),
+(20112,'striver_sde','Diameter of Binary Tree','Binary Tree Part III','easy','https://leetcode.com/problems/diameter-of-binary-tree/',112),
+(20113,'striver_sde','Balanced Binary Tree','Binary Tree Part III','easy','https://leetcode.com/problems/balanced-binary-tree/',113),
+(20114,'striver_sde','Lowest Common Ancestor of a Binary Tree','Binary Tree Part III','medium','https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/',114),
+(20115,'striver_sde','Same Tree','Binary Tree Part III','easy','https://leetcode.com/problems/same-tree/',115),
+(20116,'striver_sde','Zigzag Level Order Traversal','Binary Tree Part III','medium','https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal/',116),
+(20117,'striver_sde','Boundary Traversal of Binary Tree','Binary Tree Part III','medium',NULL,117),
+(20118,'striver_sde','Binary Tree Maximum Path Sum','Binary Tree Part IV','hard','https://leetcode.com/problems/binary-tree-maximum-path-sum/',118),
+(20119,'striver_sde','Construct Binary Tree from Preorder and Inorder','Binary Tree Part IV','medium','https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal/',119),
+(20120,'striver_sde','Construct Binary Tree from Postorder and Inorder','Binary Tree Part IV','medium','https://leetcode.com/problems/construct-binary-tree-from-inorder-and-postorder-traversal/',120),
+(20121,'striver_sde','Symmetric Tree','Binary Tree Part IV','easy','https://leetcode.com/problems/symmetric-tree/',121),
+(20122,'striver_sde','Flatten Binary Tree to Linked List','Binary Tree Part IV','medium','https://leetcode.com/problems/flatten-binary-tree-to-linked-list/',122),
+(20123,'striver_sde','Children Sum Property','Binary Tree Part IV','medium',NULL,123),
+(20124,'striver_sde','Populate Next Right Pointers','Binary Search Tree','medium','https://leetcode.com/problems/populating-next-right-pointers-in-each-node/',124),
+(20125,'striver_sde','Search in a BST','Binary Search Tree','easy','https://leetcode.com/problems/search-in-a-binary-search-tree/',125),
+(20126,'striver_sde','Construct BST from Preorder Traversal','Binary Search Tree','medium','https://leetcode.com/problems/construct-binary-search-tree-from-preorder-traversal/',126),
+(20127,'striver_sde','Check if BST Contains Dead End','Binary Search Tree','medium',NULL,127),
+(20128,'striver_sde','Inorder Predecessor and Successor in BST','Binary Search Tree','medium',NULL,128),
+(20129,'striver_sde','Kth Smallest in BST','Binary Search Tree','medium','https://leetcode.com/problems/kth-smallest-element-in-a-bst/',129),
+(20130,'striver_sde','Floor in a BST','Binary Search Tree Part II','medium',NULL,130),
+(20131,'striver_sde','Ceil in a BST','Binary Search Tree Part II','medium',NULL,131),
+(20132,'striver_sde','Kth Largest Element in BST','Binary Search Tree Part II','medium',NULL,132),
+(20133,'striver_sde','Two Sum IV - Input is a BST','Binary Search Tree Part II','medium','https://leetcode.com/problems/two-sum-iv-input-is-a-bst/',133),
+(20134,'striver_sde','Binary Search Tree Iterator','Binary Search Tree Part II','medium','https://leetcode.com/problems/binary-search-tree-iterator/',134),
+(20135,'striver_sde','Largest BST in Binary Tree','Binary Search Tree Part II','hard',NULL,135),
+(20136,'striver_sde','Serialize and Deserialize Binary Tree','Binary Search Tree Part II','hard','https://leetcode.com/problems/serialize-and-deserialize-binary-tree/',136),
+(20137,'striver_sde','Validate Binary Search Tree','Binary Search Tree Part II','medium','https://leetcode.com/problems/validate-binary-search-tree/',137),
+(20138,'striver_sde','BFS of Graph','Graphs','easy',NULL,138),
+(20139,'striver_sde','DFS of Graph','Graphs','easy',NULL,139),
+(20140,'striver_sde','Detect Cycle in Undirected Graph (BFS)','Graphs','medium',NULL,140),
+(20141,'striver_sde','Detect Cycle in Undirected Graph (DFS)','Graphs','medium',NULL,141),
+(20142,'striver_sde','Detect Cycle in Directed Graph (DFS)','Graphs','medium',NULL,142),
+(20143,'striver_sde','Topological Sort (BFS / Kahn)','Graphs','medium',NULL,143),
+(20144,'striver_sde','Topological Sort (DFS)','Graphs','medium',NULL,144),
+(20145,'striver_sde','Number of Islands','Graphs','medium','https://leetcode.com/problems/number-of-islands/',145),
+(20146,'striver_sde','Bipartite Check (BFS)','Graphs Part II','medium','https://leetcode.com/problems/is-graph-bipartite/',146),
+(20147,'striver_sde','Bipartite Check (DFS)','Graphs Part II','medium','https://leetcode.com/problems/is-graph-bipartite/',147),
+(20148,'striver_sde','Strongly Connected Components (Kosaraju)','Graphs Part II','hard',NULL,148),
+(20149,'striver_sde','Dijkstra Algorithm','Graphs Part II','medium','https://leetcode.com/problems/network-delay-time/',149),
+(20150,'striver_sde','Bellman-Ford Algorithm','Graphs Part II','medium',NULL,150),
+(20151,'striver_sde','Floyd Warshall Algorithm','Graphs Part II','medium',NULL,151),
+(20152,'striver_sde','Minimum Spanning Tree (Prim''s)','Graphs Part II','medium','https://leetcode.com/problems/min-cost-to-connect-all-points/',152),
+(20153,'striver_sde','Minimum Spanning Tree (Kruskal''s)','Graphs Part II','medium',NULL,153),
+(20154,'striver_sde','Accounts Merge','Graphs Part II','medium','https://leetcode.com/problems/accounts-merge/',154),
+(20155,'striver_sde','Maximum Product Subarray','Dynamic Programming','medium','https://leetcode.com/problems/maximum-product-subarray/',155),
+(20156,'striver_sde','Longest Increasing Subsequence','Dynamic Programming','medium','https://leetcode.com/problems/longest-increasing-subsequence/',156),
+(20157,'striver_sde','Longest Common Subsequence','Dynamic Programming','medium','https://leetcode.com/problems/longest-common-subsequence/',157),
+(20158,'striver_sde','0/1 Knapsack','Dynamic Programming','medium',NULL,158),
+(20159,'striver_sde','Edit Distance','Dynamic Programming','medium','https://leetcode.com/problems/edit-distance/',159),
+(20160,'striver_sde','Maximum Sum Increasing Subsequence','Dynamic Programming','medium',NULL,160),
+(20161,'striver_sde','Matrix Chain Multiplication','Dynamic Programming','hard',NULL,161),
+(20162,'striver_sde','Coin Change','Dynamic Programming Part II','medium','https://leetcode.com/problems/coin-change/',162),
+(20163,'striver_sde','Minimum Number of Jumps','Dynamic Programming Part II','medium','https://leetcode.com/problems/jump-game-ii/',163),
+(20164,'striver_sde','Subset Sum','Dynamic Programming Part II','medium',NULL,164),
+(20165,'striver_sde','Count Subsets with Sum K','Dynamic Programming Part II','medium',NULL,165),
+(20166,'striver_sde','Egg Drop Problem','Dynamic Programming Part II','hard','https://leetcode.com/problems/super-egg-drop/',166),
+(20167,'striver_sde','Palindrome Partitioning II','Dynamic Programming Part II','hard','https://leetcode.com/problems/palindrome-partitioning-ii/',167),
+(20168,'striver_sde','Word Break','Dynamic Programming Part II','medium','https://leetcode.com/problems/word-break/',168),
+(20169,'striver_sde','Partition Equal Subset Sum','Dynamic Programming Part II','medium','https://leetcode.com/problems/partition-equal-subset-sum/',169),
+(20170,'striver_sde','Rod Cutting Problem','Dynamic Programming Part III','medium',NULL,170),
+(20171,'striver_sde','Unbounded Knapsack','Dynamic Programming Part III','medium',NULL,171),
+(20172,'striver_sde','Best Time to Buy and Sell Stock III','Dynamic Programming Part III','hard','https://leetcode.com/problems/best-time-to-buy-and-sell-stock-iii/',172),
+(20173,'striver_sde','Best Time to Buy and Sell Stock IV','Dynamic Programming Part III','hard','https://leetcode.com/problems/best-time-to-buy-and-sell-stock-iv/',173),
+(20174,'striver_sde','Best Time to Buy and Sell Stock with Fee','Dynamic Programming Part III','medium','https://leetcode.com/problems/best-time-to-buy-and-sell-stock-with-transaction-fee/',174),
+(20175,'striver_sde','Best Time to Buy and Sell Stock with Cooldown','Dynamic Programming Part III','medium','https://leetcode.com/problems/best-time-to-buy-and-sell-stock-with-cooldown/',175),
+(20176,'striver_sde','Burst Balloons','Dynamic Programming Part III','hard','https://leetcode.com/problems/burst-balloons/',176),
+(20177,'striver_sde','Coin Change II','Dynamic Programming Part III','medium','https://leetcode.com/problems/coin-change-ii/',177),
+(20178,'striver_sde','Implement Trie (Prefix Tree)','Tries','medium','https://leetcode.com/problems/implement-trie-prefix-tree/',178),
+(20179,'striver_sde','Implement Trie II','Tries','medium',NULL,179),
+(20180,'striver_sde','Longest String with All Prefixes','Tries','medium',NULL,180),
+(20181,'striver_sde','Number of Distinct Substrings in a String','Tries','hard',NULL,181),
+(20182,'striver_sde','Maximum XOR of Two Numbers in an Array','Tries','medium','https://leetcode.com/problems/maximum-xor-of-two-numbers-in-an-array/',182),
+(20183,'striver_sde','Maximum XOR with an Element from Array','Tries','hard','https://leetcode.com/problems/maximum-xor-with-an-element-from-array/',183),
+(20184,'striver_sde','Shortest Path in DAG','Graphs (Advanced)','medium',NULL,184),
+(20185,'striver_sde','Shortest Path in Undirected Graph with Unit Weights','Graphs (Advanced)','medium',NULL,185),
+(20186,'striver_sde','Word Ladder','Graphs (Advanced)','hard','https://leetcode.com/problems/word-ladder/',186),
+(20187,'striver_sde','Alien Dictionary','Graphs (Advanced)','hard','https://leetcode.com/problems/alien-dictionary/',187),
+(20188,'striver_sde','Bridges in Graph','Graphs (Advanced)','hard',NULL,188),
+(20189,'striver_sde','Articulation Point','Graphs (Advanced)','hard',NULL,189),
+(20190,'striver_sde','Course Schedule','Graphs (Advanced)','medium','https://leetcode.com/problems/course-schedule/',190),
+(20191,'striver_sde','Course Schedule II','Graphs (Advanced)','medium','https://leetcode.com/problems/course-schedule-ii/',191)
+ON CONFLICT (id) DO NOTHING;
